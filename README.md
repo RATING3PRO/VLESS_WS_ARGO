@@ -1,81 +1,152 @@
 # VLESS-WS-ARGO Docker Deployment
 
-This project builds a Docker image that runs a **VLESS-WS** node using `sing-box` kernel, exposed via **Cloudflare Tunnel (Argo)**.
+This project provides a robust, containerized solution for deploying a VLESS-WS node using the sing-box kernel, exposed securely via Cloudflare Tunnel (Argo). It is designed for ease of deployment on PaaS platforms or self-hosted environments without requiring public IP addresses or open ports.
 
-## Features
+## Key Features
 
-- **Kernel**: `sing-box` (High performance, modern architecture)
-- **Protocol**: VLESS + WebSocket (Early Data supported)
-- **Network**: Cloudflare Tunnel (No public IP required, works behind NAT)
-- **Optimization**: Compatible with Cloudflare IP optimization ("优选IP")
-- **Auto Config**: Automatically generates 5 optimized VLESS links in container logs.
-- **Security**: WebSocket path is randomly generated based on UUID to prevent scanning.
-- **Deployment**: Docker / Docker Compose / PaaS
+*   **High-Performance Kernel**: Utilizes `sing-box` as the core for efficient and modern protocol handling.
+*   **Secure Tunneling**: Integrates `cloudflared` to establish a secure tunnel to Cloudflare's edge network. No inbound ports need to be opened on the host machine.
+*   **VLESS + WebSocket**: Uses the standard VLESS protocol over WebSocket, ensuring high compatibility with CDNs and firewalls.
+*   **Early Data Support**: Automatically configures WebSocket Early Data (0-RTT) to reduce latency during the handshake process.
+*   **Automatic Configuration**:
+    *   Generates a UUID automatically if one is not provided.
+    *   Enforces a secure WebSocket path format `/{UUID}` to prevent unauthorized scanning.
+*   **Client Link Generation**:
+    *   Automatically generates 5 ready-to-use VLESS links in the container logs upon startup.
+    *   Links are pre-configured with known optimized Cloudflare domains (Best IPs) for better connectivity.
+    *   Generates a Base64-encoded subscription string aggregating all links for easy import into clients like v2rayN, sing-box, or Clash.
+*   **PaaS Friendly**: Stateless design driven entirely by environment variables, making it suitable for platforms like Railway, Fly.io, or Heroku.
+*   **Automated Builds**: Includes a GitHub Actions workflow to automatically build and push the Docker image to the GitHub Container Registry.
+
+## Architecture
+
+1.  **Inbound**: The container runs `cloudflared`, which connects outbound to Cloudflare's edge network.
+2.  **Routing**: Traffic destined for your public hostname is routed through the tunnel to the container.
+3.  **Proxy**: `cloudflared` forwards the request to the local `sing-box` instance running on `127.0.0.1:8080`.
+4.  **Processing**: `sing-box` handles the VLESS protocol, decapsulates the traffic, and forwards it to the target destination.
 
 ## Prerequisites
 
-1.  **Cloudflare Account**: You need a domain added to Cloudflare.
-2.  **Cloudflare Tunnel**: Create a tunnel in the [Zero Trust Dashboard](https://one.dash.cloudflare.com/).
-    *   Go to **Access** -> **Tunnels** -> **Create a Tunnel**.
-    *   Name it and save.
-    *   **Copy the Token** (You will see a command like `cloudflared.exe service install eyJh...` - the part starting with `eyJh...` is your token).
-    *   **Configure Public Hostname**:
-        *   In the tunnel settings, add a public hostname (e.g., `vless.yourdomain.com`).
-        *   Service: `HTTP` -> `localhost:8080`.
+1.  **Cloudflare Account**: A domain name managed by Cloudflare.
+2.  **Cloudflare Tunnel**:
+    *   Navigate to the Cloudflare Zero Trust Dashboard.
+    *   Go to **Access** > **Tunnels** > **Create a Tunnel**.
+    *   Select **Cloudflared** connector.
+    *   Copy the **Token** from the installation command (the string following `--token`).
+    *   **Public Hostname Configuration**:
+        *   Add a public hostname (e.g., `vless.example.com`).
+        *   Set **Service** to `HTTP` and **URL** to `localhost:8080`.
 
-## Quick Start (Docker Compose)
+## Deployment
 
-1.  Edit `docker-compose.yml` and fill in your variables:
+### Option 1: Docker Compose (Recommended)
+
+1.  Create a `docker-compose.yml` file:
 
     ```yaml
     version: '3'
     services:
       vless-argo:
-        build: .
+        image: ghcr.io/your-username/vless-ws-argo:latest
         container_name: vless-argo
         restart: always
         environment:
-          - UUID= # Leave empty to auto-generate
-          - ARGO_TOKEN=eyJhIjoi... # Your Cloudflare Tunnel Token
-          - PUBLIC_HOSTNAME=vless.yourdomain.com # Set this to see share links in logs
+          - ARGO_TOKEN=eyJhIjoi...  # Paste your Cloudflare Tunnel Token here
+          - PUBLIC_HOSTNAME=vless.example.com  # Your Tunnel Domain
+          # - UUID=...  # Optional: Fixed UUID
     ```
 
-2.  Build and run:
+2.  Start the container:
 
     ```bash
-    docker-compose up -d --build
+    docker-compose up -d
     ```
 
-3.  Check logs for connection links:
+### Option 2: Docker CLI
 
-    ```bash
-    docker logs vless-argo
-    ```
-    
-    You will see output like:
-    ```text
-    [INFO] VLESS Share Links (Import to v2rayN / sing-box / Clash)
-    ---------------------------------------------------
-    Server: cf.254301.xyz
-    vless://uuid@cf.254301.xyz:443?encryption=none&security=tls&sni=vless.yourdomain.com&type=ws&host=vless.yourdomain.com&path=/uuid?ed=2048#cf.254301.xyz-Argo
-    ...
-    ```
+```bash
+docker run -d \
+  --name vless-argo \
+  --restart always \
+  -e ARGO_TOKEN="eyJhIjoi..." \
+  -e PUBLIC_HOSTNAME="vless.example.com" \
+  ghcr.io/your-username/vless-ws-argo:latest
+```
 
-## Environment Variables
+## Configuration
 
-| Variable | Description | Default |
-| :--- | :--- | :--- |
-| `UUID` | VLESS User ID. If empty, a random one is generated on startup. | (Random) |
-| `ARGO_TOKEN` | **Required**. Cloudflare Tunnel Token. | None |
-| `PUBLIC_HOSTNAME` | Your Cloudflare Tunnel Domain (e.g. `vless.example.com`). Used to generate share links. | None |
+The application is configured entirely via environment variables.
 
-**Note**: The WebSocket path is automatically set to `/{UUID}?ed=2048` to enhance security and enable Early Data support.
+| Variable | Required | Description | Default |
+| :--- | :--- | :--- | :--- |
+| `ARGO_TOKEN` | **Yes** | The Cloudflare Tunnel token obtained from the Zero Trust Dashboard. | None |
+| `PUBLIC_HOSTNAME` | No | The public domain assigned to this tunnel (e.g., `vless.example.com`). Required for generating share links in the logs. | None |
+| `UUID` | No | A specific VLESS User ID. If left empty, a random UUID will be generated at startup. | Randomly Generated |
 
-## GitHub Actions Workflow
+**Note on WebSocket Path**: The WebSocket path is automatically set to `/{UUID}?ed=2048`. It cannot be manually configured. This ensures the path is unpredictable (security) and enables Early Data (performance).
 
-This repository includes a GitHub Action `.github/workflows/docker-image.yml` that automatically builds and pushes the Docker image to GitHub Container Registry (ghcr.io) on push to `main` or when a tag starting with `v` is pushed.
+## Post-Deployment
 
-### Usage
-1. Fork this repository.
-2. Enable GitHub Actions in your repository settings.
-3. Push code to trigger build.
+After the container starts, check the logs to retrieve your connection details.
+
+```bash
+docker logs vless-argo
+```
+
+You will see output similar to the following:
+
+```text
+[INFO] ---------------------------------------------------
+[INFO] Starting VLESS-WS-ARGO Node
+[INFO] UUID: d4b717cd-e8d1-4875-af98-483ec8f0b204
+[INFO] WSPATH: /d4b717cd-e8d1-4875-af98-483ec8f0b204?ed=2048
+[INFO] PUBLIC_HOSTNAME: vless.example.com
+[INFO] ---------------------------------------------------
+...
+[INFO] ---------------------------------------------------
+[INFO] VLESS Share Links (Import to v2rayN / sing-box / Clash)
+[INFO] ---------------------------------------------------
+Server: cf.254301.xyz
+vless://d4b717cd...@cf.254301.xyz:443?encryption=none&security=tls&sni=vless.example.com&type=ws&host=vless.example.com&path=%2Fd4b717cd...%3Fed%3D2048#cf.254301.xyz-Argo
+
+...
+
+[INFO] ---------------------------------------------------
+[INFO] Base64 Subscription Link (Copy content below)
+[INFO] ---------------------------------------------------
+dmxlc3M6Ly8uLi4Kdmxlc3M6Ly8uLi4K...
+[INFO] ---------------------------------------------------
+```
+
+*   **Individual Links**: Copy any of the `vless://` links to your client. They point to different "Best IP" domains but route to your tunnel.
+*   **Subscription**: Copy the Base64 string and import it into your client (e.g., "Import from Clipboard") to add all nodes at once.
+
+## Manual Client Configuration
+
+If you prefer to configure your client manually, use the following settings:
+
+*   **Server Address**: `cf.254301.xyz` (or any optimized Cloudflare IP/domain)
+*   **Port**: `443`
+*   **User ID (UUID)**: The UUID from the logs
+*   **Encryption**: `none`
+*   **Network (Transport)**: `ws` (WebSocket)
+*   **WebSocket Path**: `/{UUID}?ed=2048` (e.g., `/d4b717cd-e8d1-4875-af98-483ec8f0b204?ed=2048`)
+*   **Host**: Your public hostname (e.g., `vless.example.com`)
+*   **TLS**: Enabled
+*   **SNI**: Your public hostname (e.g., `vless.example.com`)
+
+## CI/CD
+
+This repository contains a GitHub Actions workflow `.github/workflows/docker-image.yml`. It triggers on:
+
+*   Push to the `main` branch.
+*   Push of tags starting with `v` (e.g., `v1.0.0`).
+
+The workflow builds the Docker image and pushes it to the GitHub Container Registry (ghcr.io) associated with the repository.
+
+## Security & Optimization Details
+
+*   **Zero Trust**: By using Cloudflare Tunnel, your server's IP remains hidden, and no ports are exposed to the internet.
+*   **Path Security**: The WebSocket path is tied to the UUID, effectively acting as a secondary password.
+*   **CDN Optimization**: The generated links use domains known to have better routing through Cloudflare's network for certain regions, potentially improving speed and stability.
+*   **Keep-Alive**: The entrypoint script monitors both `sing-box` and `cloudflared` processes and will terminate the container if either fails, allowing Docker's restart policy to handle recovery.
