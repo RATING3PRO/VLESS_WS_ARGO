@@ -35,7 +35,9 @@ if [ -z "$ARGO_TOKEN" ]; then
     exit 1
 fi
 
-WSPATH="/$UUID?ed=2048"
+WSPATH="/$UUID"
+WSPATH_LINK="/$UUID?ed=2048"
+WSPATH_ENCODED="%2F${UUID}%3Fed%3D2048"
 PORT=8080
 
 log_info "---------------------------------------------------"
@@ -94,17 +96,30 @@ if [ -n "$PUBLIC_HOSTNAME" ]; then
     # Define best domains
     DOMAINS="cf.254301.xyz isp.254301.xyz www.visa.cn adventure-x.org www.hltv.org"
     
+    ALL_LINKS=""
+
     for DOMAIN in $DOMAINS; do
         # Construct link: vless://uuid@host:443?encryption=none&security=tls&sni=sni&type=ws&host=host&path=path#remark
         # Note: In standard VLESS link, "host" refers to the destination server address (the best domain here).
         # "sni" and "host" (in query) refer to the actual hidden service (PUBLIC_HOSTNAME).
         
-        LINK="vless://${UUID}@${DOMAIN}:443?encryption=none&security=tls&sni=${PUBLIC_HOSTNAME}&type=ws&host=${PUBLIC_HOSTNAME}&path=${WSPATH}#${DOMAIN}-Argo"
+        LINK="vless://${UUID}@${DOMAIN}:443?encryption=none&security=tls&sni=${PUBLIC_HOSTNAME}&type=ws&host=${PUBLIC_HOSTNAME}&path=${WSPATH_ENCODED}#${DOMAIN}-Argo"
         
         echo -e "${YELLOW}Server: ${DOMAIN}${NC}"
         log_link "$LINK"
         echo ""
+        
+        ALL_LINKS="${ALL_LINKS}${LINK}\n"
     done
+    
+    # Base64 Encode
+    if [ -n "$ALL_LINKS" ]; then
+        BASE64_LINKS=$(echo -e "$ALL_LINKS" | base64 | tr -d '\n')
+        log_info "---------------------------------------------------"
+        log_info "Base64 Subscription Link (Copy content below)"
+        log_info "---------------------------------------------------"
+        log_link "$BASE64_LINKS"
+    fi
     log_info "---------------------------------------------------"
 else
     log_warn "PUBLIC_HOSTNAME not set. Skipping link generation."
