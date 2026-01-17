@@ -1,0 +1,12 @@
+services:
+  vless-argo:
+    build: .
+    image: vless-ws-argo:latest
+    container_name: vless-argo
+    restart: always
+    environment:
+      - UUID=your-uuid-here
+      - ARGO_TOKEN=eyJhIjoi...
+    # Network is handled by cloudflared tunnel, no ports need to be exposed
+    # ports:
+    #   - "8080:8080" 
