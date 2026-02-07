@@ -1,12 +1,13 @@
 services:
   vless-argo:
     build: .
-    image: vless-ws-argo:latest
+    image: ghcr.io/rating3pro/vless-websocket-argotunnel-docker:latest
     container_name: vless-argo
     restart: always
     environment:
-      - UUID=your-uuid-here
-      - ARGO_TOKEN=eyJhIjoi...
+      - UUID=your-uuid-here # Your UUID
+      - ARGO_TOKEN=eyJhIjoi... # Your Argo Tunnel Token
+      - PUBLIC_HOSTNAME=vless.example.com  # Your Tunnel Domain
     # Network is handled by cloudflared tunnel, no ports need to be exposed
     # ports:
     #   - "8080:8080" 
