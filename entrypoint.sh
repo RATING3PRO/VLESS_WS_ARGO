@@ -113,11 +113,18 @@ if ! kill -0 $SINGBOX_PID > /dev/null 2>&1; then
     exit 1
 fi
 
+# Prepare Cloudflared Args
+CLOUDFLARED_ARGS="--protocol http2 --no-autoupdate"
+if [ "$EDGE_IP_VER" = "true" ]; then
+    CLOUDFLARED_ARGS="$CLOUDFLARED_ARGS --edge-ip-version 6"
+    log_info "Cloudflared: Using IPv6 for Edge Connection"
+fi
+
 # Start cloudflared
 if [ "$USE_QUICK_TUNNEL" = "true" ]; then
     log_info "Starting cloudflared (Quick Tunnel)..."
     # Start cloudflared and capture output to find the trycloudflare URL
-    cloudflared tunnel --protocol http2 --url http://localhost:$PORT --no-autoupdate > /tmp/cloudflared.log 2>&1 &
+    cloudflared tunnel $CLOUDFLARED_ARGS --url http://localhost:$PORT > /tmp/cloudflared.log 2>&1 &
     CLOUDFLARED_PID=$!
     
     # Wait for the URL to appear in the log
@@ -144,7 +151,7 @@ if [ "$USE_QUICK_TUNNEL" = "true" ]; then
     fi
 else
     log_info "Starting cloudflared tunnel..."
-    cloudflared tunnel --protocol http2 --no-autoupdate run --token "$ARGO_TOKEN" &
+    cloudflared tunnel $CLOUDFLARED_ARGS run --token "$ARGO_TOKEN" &
     CLOUDFLARED_PID=$!
 fi
 

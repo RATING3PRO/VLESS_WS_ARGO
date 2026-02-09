@@ -18,6 +18,7 @@ This project provides a robust, containerized solution for deploying a VLESS-WS 
     *   **Fingerprint Randomization**: Automatically adds `fp=chrome` to simulate Chrome browser traffic.
     *   Generates a Base64-encoded subscription string aggregating all links for easy import into clients like v2rayN, sing-box, or Clash.
 *   **ECH Support**: Optional support for Encrypted Client Hello (ECH) to further enhance privacy and censorship resistance.
+*   **IPv6 Edge Support**: Optional support for connecting to Cloudflare Edge via IPv6 (`EDGE_IP_VER=true`), useful in IPv4-restricted environments.
 *   **PaaS Friendly**: Stateless design driven entirely by environment variables, making it suitable for platforms like Railway, Fly.io, or Heroku.
 *   **Quick Tunnel Mode**: Supports temporary deployment using Cloudflare Quick Tunnels (trycloudflare.com) without a Cloudflare account.
 *   **Automated Builds**: Includes a GitHub Actions workflow to automatically build and push the Docker image to the GitHub Container Registry.
@@ -58,6 +59,7 @@ This project provides a robust, containerized solution for deploying a VLESS-WS 
       - ARGO_TOKEN=eyJhIjoi...  # Paste your Cloudflare Tunnel Token here
       - PUBLIC_HOSTNAME=vless.example.com  # Your Tunnel Domain
       - ECH_CONFIG=true  # Optional: Enable ECH (Encrypted Client Hello)
+      # - EDGE_IP_VER=true # Optional: Use IPv6 for Argo Tunnel
       # - UUID=...  # Optional: Fixed UUID
     ```
 
@@ -76,6 +78,7 @@ docker run -d \
   -e ARGO_TOKEN="eyJhIjoi..." \
   -e PUBLIC_HOSTNAME="vless.example.com" \
   -e ECH_CONFIG="true" \
+  -e EDGE_IP_VER="true" \
   ghcr.io/rating3pro/vless-websocket-argotunnel-docker:latest
 ```
 
@@ -105,6 +108,7 @@ The application is configured entirely via environment variables.
 | `PUBLIC_HOSTNAME` | No | The public domain assigned to this tunnel. Required for generating share links in standard mode. Auto-detected in Quick Tunnel mode. | None |
 | `UUID` | No | A specific VLESS User ID. If left empty, a random UUID will be generated at startup. | Randomly Generated |
 | `ECH_CONFIG` | No | Set to `true` to enable default ECH config, or provide a custom ECH config string. | None (Disabled) |
+| `EDGE_IP_VER` | No | Set to `true` to force Cloudflare Tunnel to connect via IPv6. | None (IPv4) |
 
 **Note on WebSocket Path**: The WebSocket path is automatically set to `/{UUID}?ed=2048`. It cannot be manually configured. This ensures the path is unpredictable (security) and enables Early Data (performance).
 
