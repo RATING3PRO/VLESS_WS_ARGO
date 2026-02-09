@@ -43,8 +43,10 @@ log_info "WSPATH: $WSPATH"
 if [ -n "$ECH_CONFIG" ]; then
     if [ "$ECH_CONFIG" = "true" ]; then
         log_info "ECH: Enabled (Default Config)"
-    else
+    elif [ "$ECH_CONFIG" != "false" ]; then
         log_info "ECH: Enabled (Custom Config)"
+    else
+        log_info "ECH: Disabled (Explicitly set to false)"
     fi
 else
     log_info "ECH: Disabled"
@@ -115,7 +117,7 @@ fi
 
 # Prepare Cloudflared Args
 CLOUDFLARED_ARGS="--protocol http2 --no-autoupdate"
-if [ "$EDGE_IP_VER" = "true" ]; then
+if [ "$EDGE_IP_VER" = "6" ]; then
     CLOUDFLARED_ARGS="$CLOUDFLARED_ARGS --edge-ip-version 6"
     log_info "Cloudflared: Using IPv6 for Edge Connection"
 fi
@@ -162,7 +164,7 @@ if [ -n "$PUBLIC_HOSTNAME" ]; then
     if [ -n "$ECH_CONFIG" ]; then
         if [ "$ECH_CONFIG" = "true" ]; then
             ECH_STR="&ech=cloudflare-ech.com%2Bhttps%3A%2F%2Fvercel.doh.xie.today%2Fapi%2Fdoh%2Fgoogle"
-        else
+        elif [ "$ECH_CONFIG" != "false" ]; then
             # URL Encode the custom ECH config using awk
             ECH_ENCODED=$(echo -n "$ECH_CONFIG" | awk 'BEGIN {
                 for (i = 0; i <= 255; i++) ord[sprintf("%c", i)] = i
